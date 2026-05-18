@@ -1,0 +1,209 @@
+// LeadOS schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Enums ----------
+
+enum AdvisorGroup {
+  A
+  B
+  BACKEND
+}
+
+enum AdvisorStatus {
+  ACTIVE
+  PAUSED
+  HOLIDAY
+  FULL
+}
+
+enum DeliveryPref {
+  SMS
+  EMAIL
+  BOTH
+}
+
+enum QualityBand {
+  HIGH
+  MID
+  LOW
+}
+
+enum LeadStatus {
+  NEW
+  ASSIGNED
+  HELD
+  SENT
+  FAILED
+  DUPLICATE
+  AFTER_HOURS
+}
+
+enum AfterHoursMode {
+  CRAIG       // Mode A — forward to Craig/admin
+  HOLD        // Mode B — hold until morning
+  AI_CHATBOT  // Future
+}
+
+enum NotifyChannel {
+  SMS
+  EMAIL
+}
+
+enum NotifyStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// ---------- Models ----------
+
+model Advisor {
+  id                String            @id @default(cuid())
+  name              String
+  phone             String?
+  email             String?
+  group             AdvisorGroup      @default(A)
+  status            AdvisorStatus     @default(ACTIVE)
+  preferredDelivery DeliveryPref      @default(BOTH)
+  dailyLeadCap      Int               @default(2)
+  priority          Int               @default(100)   // lower = higher priority
+  acceptsHigh       Boolean           @default(true)
+  acceptsMid        Boolean           @default(true)
+  acceptsLow        Boolean           @default(false)
+  weekendEnabled    Boolean           @default(false)
+  pausedUntil       DateTime?
+  notes             String?
+  leadsReceivedToday Int              @default(0)
+  countersResetAt   DateTime          @default(now())
+
+  schedules         AdvisorSchedule[]
+  assignments       LeadAssignment[]
+  notifications     NotificationLog[]
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([status])
+  @@index([group])
+}
+
+model AdvisorSchedule {
+  id        String   @id @default(cuid())
+  advisorId String
+  dayOfWeek Int      // 0=Sunday … 6=Saturday
+  startTime String   // "HH:mm"
+  endTime   String   // "HH:mm"
+  enabled   Boolean  @default(true)
+
+  advisor   Advisor  @relation(fields: [advisorId], references: [id], onDelete: Cascade)
+
+  @@unique([advisorId, dayOfWeek])
+  @@index([advisorId])
+}
+
+model Lead {
+  id                  String            @id @default(cuid())
+  facebookLeadgenId   String?           @unique
+  fullName            String
+  phone               String?
+  email               String?
+  postcode            String?
+  age                 Int?
+  propertyValue       Int?              // in £ pounds
+  mortgageRemaining   Int?              // in £ pounds
+  urgency             String?
+  enquiryStage        String?
+  source              String            @default("facebook")  // facebook | manual | api
+  rawPayload          Json?
+  qualityScore        Int?
+  qualityBand         QualityBand?
+  assignedGroup       AdvisorGroup?
+  status              LeadStatus        @default(NEW)
+  receivedAt          DateTime          @default(now())
+  sentAt              DateTime?
+
+  assignments         LeadAssignment[]
+  logs                LeadLog[]
+  notifications       NotificationLog[]
+
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([status])
+  @@index([qualityBand])
+  @@index([receivedAt])
+}
+
+model LeadAssignment {
+  id          String   @id @default(cuid())
+  leadId      String
+  advisorId   String
+  createdAt   DateTime @default(now())
+
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  advisor     Advisor  @relation(fields: [advisorId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, advisorId])
+  @@index([advisorId, createdAt])
+}
+
+model LeadLog {
+  id        String   @id @default(cuid())
+  leadId    String?
+  level     String   @default("info") // info | warn | error
+  message   String
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  lead      Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([leadId, createdAt])
+  @@index([createdAt])
+}
+
+model NotificationLog {
+  id          String        @id @default(cuid())
+  leadId      String?
+  advisorId   String?
+  channel     NotifyChannel
+  status      NotifyStatus  @default(PENDING)
+  to          String        // phone or email
+  body        String
+  subject     String?
+  error       String?
+  attempts    Int           @default(0)
+  createdAt   DateTime      @default(now())
+  sentAt      DateTime?
+
+  lead        Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  advisor     Advisor?      @relation(fields: [advisorId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([leadId])
+}
+
+model AdminCommand {
+  id            String   @id @default(cuid())
+  rawText       String
+  parsedAction  Json?
+  applied       Boolean  @default(false)
+  appliedAt     DateTime?
+  result        String?
+  error         String?
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// One row per key — used for editable settings (scoring thresholds, hours, after-hours mode, flags).
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}

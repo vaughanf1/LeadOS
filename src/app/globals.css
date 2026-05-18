@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://rsms.me/inter/inter.css");
+
+html, body {
+  background: theme("colors.canvas.DEFAULT");
+  color: theme("colors.ink.DEFAULT");
+  font-family: theme("fontFamily.sans");
+  font-feature-settings: "ss01", "cv01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .card {
+    @apply bg-canvas-card rounded-2xl shadow-card border border-line/60;
+  }
+  .card-header {
+    @apply px-6 py-4 border-b border-line/60 flex items-center justify-between;
+  }
+  .card-body {
+    @apply p-6;
+  }
+  .btn {
+    @apply inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition
+           focus:outline-none focus:ring-2 focus:ring-brand/40 focus:ring-offset-2 focus:ring-offset-canvas;
+  }
+  .btn-primary {
+    @apply btn bg-brand text-white hover:bg-brand-600 active:bg-brand-700 shadow-soft;
+  }
+  .btn-secondary {
+    @apply btn bg-canvas-card text-ink border border-line hover:bg-canvas-subtle;
+  }
+  .btn-ghost {
+    @apply btn text-ink-muted hover:bg-canvas-subtle hover:text-ink;
+  }
+  .btn-danger {
+    @apply btn bg-danger text-white hover:opacity-90;
+  }
+  .input {
+    @apply w-full rounded-xl border border-line bg-canvas-card px-4 py-2.5 text-sm
+           focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand;
+  }
+  .label {
+    @apply text-xs font-medium uppercase tracking-wide text-ink-muted mb-1.5 block;
+  }
+  .table {
+    @apply w-full text-sm;
+  }
+  .table thead th {
+    @apply text-left text-xs font-medium uppercase tracking-wide text-ink-muted
+           px-6 py-3 border-b border-line bg-canvas-subtle/50;
+  }
+  .table tbody td {
+    @apply px-6 py-3.5 border-b border-line/60 align-middle;
+  }
+  .table tbody tr:hover td {
+    @apply bg-canvas-subtle/40;
+  }
+}

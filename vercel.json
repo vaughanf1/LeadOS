@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/release-held",
+      "schedule": "30 8 * * *"
+    },
+    {
+      "path": "/api/cron/reset-daily-counts",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}
