@@ -51,6 +51,20 @@ export function normaliseFbLead(fb: FbLead) {
   for (const f of fb.field_data) {
     flat[f.name.toLowerCase().trim()] = (f.values?.[0] ?? "").trim();
   }
+  return normaliseFlat(flat, fb.id, fb as unknown as object);
+}
+
+/**
+ * Normalise an already-flattened key→value map into our Lead shape. Shared by
+ * the Facebook webhook (via normaliseFbLead) and the Zapier ingest endpoint,
+ * which receives the lead fields directly without a Graph API round-trip.
+ * `leadgenId` is optional — Zapier may or may not pass Facebook's lead id.
+ */
+export function normaliseFlat(
+  flat: Record<string, string>,
+  leadgenId?: string | null,
+  raw?: object
+) {
   const find = (...keys: string[]): string | undefined => {
     for (const k of keys) {
       for (const name in flat) {
@@ -75,7 +89,7 @@ export function normaliseFbLead(fb: FbLead) {
   };
 
   return {
-    facebookLeadgenId: fb.id,
+    facebookLeadgenId: leadgenId || null,
     fullName: fullName || "Unknown",
     phone: find("phone", "phone_number", "mobile") ?? null,
     email: find("email") ?? null,
@@ -85,6 +99,6 @@ export function normaliseFbLead(fb: FbLead) {
     mortgageRemaining: toInt(mortRaw),
     urgency: find("urgency", "when", "timescale", "timeframe") ?? null,
     enquiryStage: find("stage", "researching", "status") ?? null,
-    rawPayload: fb as unknown as object,
+    rawPayload: (raw ?? flat) as object,
   };
 }
