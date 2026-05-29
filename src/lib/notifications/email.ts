@@ -22,14 +22,66 @@ function transporter(): Transporter | null {
   return cached;
 }
 
+/** Parse a "Name <email>" string into its parts. */
+function parseFrom(from: string): { name: string; email: string } {
+  const m = from.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
+  if (m) return { name: m[1] || "LeadOS", email: m[2].trim() };
+  return { name: "LeadOS", email: from.trim() };
+}
+
+/**
+ * Send via Brevo's transactional HTTP API (port 443).
+ * Used in production because Railway blocks outbound SMTP ports.
+ */
+async function sendViaBrevo(
+  apiKey: string,
+  from: string,
+  opts: { to: string; subject: string; text: string; html?: string }
+): Promise<EmailResult> {
+  const sender = parseFrom(from);
+  try {
+    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "api-key": apiKey,
+        "content-type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify({
+        sender,
+        to: [{ email: opts.to }],
+        subject: opts.subject,
+        textContent: opts.text,
+        ...(opts.html ? { htmlContent: opts.html } : {}),
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      return { ok: false, error: `Brevo ${res.status}: ${body.slice(0, 200)}` };
+    }
+    const data = (await res.json()) as { messageId?: string };
+    return { ok: true, messageId: data.messageId ?? "brevo" };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 export async function sendEmail(opts: {
   to: string;
   subject: string;
   text: string;
   html?: string;
 }): Promise<EmailResult> {
-  const t = transporter();
   const from = process.env.SMTP_FROM ?? "LeadOS <noreply@example.com>";
+
+  // Preferred path: Brevo HTTP API (works on Railway, which blocks SMTP).
+  const brevoKey = process.env.BREVO_API_KEY;
+  if (brevoKey) {
+    return sendViaBrevo(brevoKey, from, opts);
+  }
+
+  // Fallback: SMTP (works locally where outbound SMTP isn't blocked).
+  const t = transporter();
   if (!t) {
     console.warn("[email:stub] →", opts.to, "|", opts.subject);
     console.warn(opts.text);

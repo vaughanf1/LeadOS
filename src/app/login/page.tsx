@@ -12,7 +12,7 @@ async function loginAction(formData: FormData) {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: 60 * 60 * 24 * 365, // stay logged in for a year
   });
   redirect("/dashboard");
 }
