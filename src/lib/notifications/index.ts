@@ -96,6 +96,49 @@ export async function notifyAfterHoursAdmins(lead: Lead) {
   return results;
 }
 
+/**
+ * Send the "no advisor available" fallback alert. Fired when distribution
+ * returns UNASSIGNED (all advisors paused / on holiday / at their daily cap),
+ * so the lead would otherwise sit silent with nobody notified.
+ *
+ * Recipients default to Craig + Kasia but can be overridden via the
+ * FALLBACK_ALERT_EMAILS env var (comma-separated).
+ */
+export async function notifyUnassignedFallback(lead: Lead) {
+  const recipients = (process.env.FALLBACK_ALERT_EMAILS ?? "Craig@os4ll.co.uk,Kasia@os4ll.co.uk")
+    .split(",")
+    .map((e) => e.trim())
+    .filter(Boolean);
+
+  const { text, html } = emailTemplate(lead, null);
+  const subject = `⚠️ UNASSIGNED lead — no advisor available — ${lead.fullName}`;
+  const banner =
+    "No advisor was available for this lead (all paused, on holiday, or at their daily cap). " +
+    "It has NOT been sent to anyone and needs manual assignment.";
+  const fallbackText = `${banner}\n\n${text}`;
+  const fallbackHtml = `<p style="font-family:Inter,sans-serif;font-size:15px;color:#B91C1C"><strong>${banner}</strong></p>${html}`;
+
+  const results: { channel: string; ok: boolean; error?: string }[] = [];
+  for (const to of recipients) {
+    const r = await sendEmail({ to, subject, text: fallbackText, html: fallbackHtml });
+    await prisma.notificationLog.create({
+      data: {
+        leadId: lead.id,
+        channel: "EMAIL",
+        status: r.ok ? "SENT" : "FAILED",
+        to,
+        body: fallbackText,
+        subject,
+        error: r.error,
+        attempts: 1,
+        sentAt: r.ok ? new Date() : null,
+      },
+    });
+    results.push({ channel: `EMAIL:${to}`, ok: r.ok, error: r.error });
+  }
+  return results;
+}
+
 /** Retry failed notifications (called by an admin button or future cron). */
 export async function retryFailed(limit = 20) {
   const failed = await prisma.notificationLog.findMany({

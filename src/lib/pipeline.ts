@@ -3,7 +3,7 @@ import { prisma } from "./prisma";
 import { getAllSettings } from "./settings";
 import { scoreLead } from "./scoring";
 import { planDistribution, type AdvisorWithSchedule } from "./distribution";
-import { notifyAdvisor, notifyAfterHoursAdmins } from "./notifications";
+import { notifyAdvisor, notifyAfterHoursAdmins, notifyUnassignedFallback } from "./notifications";
 
 /**
  * Run a freshly-stored lead through scoring + distribution + notification.
@@ -63,6 +63,21 @@ export async function processLead(leadId: string) {
     });
     await prisma.leadLog.create({
       data: { leadId: lead.id, level: "warn", message: "No advisor available — lead left UNASSIGNED." },
+    });
+    const unassigned = await prisma.lead.findUniqueOrThrow({ where: { id: lead.id } });
+    const fallbackResults = await notifyUnassignedFallback(unassigned);
+    const allOk = fallbackResults.every((r) => r.ok);
+    await prisma.leadLog.create({
+      data: {
+        leadId: lead.id,
+        level: allOk ? "info" : "error",
+        message: allOk
+          ? `Fallback alert sent: ${fallbackResults.map((r) => r.channel).join(", ")}.`
+          : `Fallback alert failure: ${fallbackResults
+              .filter((r) => !r.ok)
+              .map((r) => `${r.channel}=${r.error ?? "?"}`)
+              .join("; ")}`,
+      },
     });
     return { plan, status: "NEW" as const };
   }
