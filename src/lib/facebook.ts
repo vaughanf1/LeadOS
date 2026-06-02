@@ -49,7 +49,9 @@ export async function fetchLead(leadgenId: string): Promise<FbLead> {
 export function normaliseFbLead(fb: FbLead) {
   const flat: Record<string, string> = {};
   for (const f of fb.field_data) {
-    flat[f.name.toLowerCase().trim()] = (f.values?.[0] ?? "").trim();
+    // Multi-select fields ("select all that apply") carry several values — keep
+    // them all, joined, rather than dropping everything after the first.
+    flat[f.name.toLowerCase().trim()] = (f.values ?? []).map((v) => v.trim()).filter(Boolean).join(", ");
   }
   return normaliseFlat(flat, fb.id, fb as unknown as object);
 }

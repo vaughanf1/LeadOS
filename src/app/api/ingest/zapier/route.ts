@@ -43,7 +43,12 @@ export async function POST(req: NextRequest) {
   if (Array.isArray(fieldData)) {
     for (const f of fieldData as { name?: string; values?: unknown[] }[]) {
       if (!f?.name) continue;
-      flat[String(f.name).toLowerCase().trim()] = String(f.values?.[0] ?? "").trim();
+      // Multi-select fields ("select all that apply") carry several values — keep
+      // them all, joined, rather than dropping everything after the first.
+      flat[String(f.name).toLowerCase().trim()] = (f.values ?? [])
+        .map((v) => String(v).trim())
+        .filter(Boolean)
+        .join(", ");
     }
   } else {
     for (const [k, v] of Object.entries(body)) {
