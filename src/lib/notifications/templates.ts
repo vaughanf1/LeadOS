@@ -1,6 +1,16 @@
 import type { Lead, Advisor } from "@prisma/client";
 import { formatGBP, formatDateTime } from "../utils";
 
+/**
+ * Whether this recipient is allowed to see the internal lead quality band +
+ * score in their notification. Hidden from front-line advisers (Groups A/B) —
+ * it biases how hard they work a lead — and shown only to the backend
+ * oversight team (Craig + Kasia). Everyone with dashboard access still sees it.
+ */
+function canSeeScore(advisor: Advisor | null): boolean {
+  return advisor?.group === "BACKEND";
+}
+
 export function smsTemplate(lead: Lead) {
   return [
     "New equity release lead:",
@@ -12,14 +22,13 @@ export function smsTemplate(lead: Lead) {
     `Mortgage Left: ${formatGBP(lead.mortgageRemaining)}`,
     `Urgency: ${lead.urgency ?? "—"}`,
     `Needs Money For: ${lead.loanPurpose ?? "—"}`,
-    `Quality: ${lead.qualityBand ?? "—"}`,
     "",
     "Call ASAP.",
   ].join("\n");
 }
 
 export function emailTemplate(lead: Lead, advisor: Advisor | null) {
-  const subject = `New ${lead.qualityBand ?? "—"} Equity Release Lead — ${lead.fullName}`;
+  const subject = `New Equity Release Lead — ${lead.fullName}`;
   const text = [
     `Name: ${lead.fullName}`,
     `Phone: ${lead.phone ?? "—"}`,
@@ -30,7 +39,10 @@ export function emailTemplate(lead: Lead, advisor: Advisor | null) {
     `Mortgage Remaining: ${formatGBP(lead.mortgageRemaining)}`,
     `Urgency: ${lead.urgency ?? "—"}`,
     `Needs Money For: ${lead.loanPurpose ?? "—"}`,
-    `Lead Quality: ${lead.qualityBand ?? "—"} (score ${lead.qualityScore ?? "—"})`,
+    // Quality band + score only for permitted recipients (Kasia); hidden from advisers.
+    ...(canSeeScore(advisor)
+      ? [`Lead Quality: ${lead.qualityBand ?? "—"} (score ${lead.qualityScore ?? "—"})`]
+      : []),
     `Received At: ${formatDateTime(lead.receivedAt)}`,
     `Assigned To: ${advisor?.name ?? "—"}`,
   ].join("\n");
