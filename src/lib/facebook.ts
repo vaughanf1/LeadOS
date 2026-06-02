@@ -109,6 +109,19 @@ export function normaliseFlat(
     mortgageRemaining: toInt(mortRaw),
     urgency: find("urgency", "when", "timescale", "timeframe") ?? null,
     enquiryStage: find("stage", "researching", "status") ?? null,
+    // "What do you need the money for?" — phrasing varies across lead forms.
+    loanPurpose:
+      find(
+        "purpose",
+        "reason",
+        "money for",
+        "funds for",
+        "use the money",
+        "use the funds",
+        "looking to use",
+        "what do you need",
+        "spend"
+      ) ?? null,
     rawPayload: (raw ?? flat) as object,
   };
 }

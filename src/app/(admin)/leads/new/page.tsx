@@ -22,6 +22,7 @@ async function createTestLead(formData: FormData) {
       mortgageRemaining: toInt(get("mortgageRemaining")),
       urgency: get("urgency"),
       enquiryStage: get("enquiryStage"),
+      loanPurpose: get("loanPurpose"),
       source: "manual",
       status: "NEW",
     },
@@ -57,6 +58,7 @@ export default function NewLeadPage() {
             </select>
           </div>
           <Field label="Enquiry stage" name="enquiryStage" defaultValue="ready to apply" />
+          <Field label="Needs money for" name="loanPurpose" defaultValue="home improvements" />
         </div>
         <div className="px-6 pb-6 flex justify-end gap-2">
           <button type="submit" className="btn-primary">Create & process</button>

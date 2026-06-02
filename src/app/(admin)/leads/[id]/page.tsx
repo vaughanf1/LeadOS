@@ -84,6 +84,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
               <Row k="Property" v={formatGBP(lead.propertyValue)} />
               <Row k="Mortgage" v={formatGBP(lead.mortgageRemaining)} />
               <Row k="Urgency" v={lead.urgency} />
+              <Row k="Needs money for" v={lead.loanPurpose} />
               <Row k="Stage" v={lead.enquiryStage} />
               <Row k="Source" v={lead.source} />
               {lead.facebookLeadgenId && <Row k="FB leadgen" v={lead.facebookLeadgenId} />}

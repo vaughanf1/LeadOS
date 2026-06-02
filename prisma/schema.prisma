@@ -119,6 +119,7 @@ model Lead {
   mortgageRemaining   Int?              // in £ pounds
   urgency             String?
   enquiryStage        String?
+  loanPurpose         String?           // what the customer needs the money for
   source              String            @default("facebook")  // facebook | manual | api
   rawPayload          Json?
   qualityScore        Int?
