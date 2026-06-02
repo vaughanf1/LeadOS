@@ -84,8 +84,18 @@ export function normaliseFlat(
 
   const toInt = (s?: string) => {
     if (!s) return null;
-    const digits = s.replace(/[^\d]/g, "");
-    return digits ? parseInt(digits, 10) : null;
+    // Lead-form dropdowns send values as ranges, e.g. "£300,000 – £400,000".
+    // Drop thousands separators / decimals, then take each number group. A
+    // range yields >1 group → use the midpoint as the representative value
+    // (matches the >= band thresholds in scoring.ts). Stripping every
+    // non-digit instead concatenated the bounds into "300000400000", which
+    // overflowed Postgres INT4 and made every lead.create() fail.
+    const groups = s.replace(/,/g, "").replace(/\.\d+/g, "").match(/\d+/g);
+    if (!groups) return null;
+    const vals = groups.map((g) => parseInt(g, 10)).filter(Number.isFinite);
+    if (!vals.length) return null;
+    const value = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+    return Math.min(value, 2147483647); // clamp to INT4 max as a safety net
   };
 
   return {
