@@ -54,6 +54,20 @@ describe("normaliseFbLead", () => {
     expect(normalised.urgency).toBe("1-3 months");
   });
 
+  it("captures multi-select loan purpose from an underscored question key", () => {
+    const r = normaliseFbLead({
+      id: "x",
+      created_time: "",
+      field_data: [
+        {
+          name: "what_would_you_use_the_money_for?_(select_all_that_apply)",
+          values: ["Home improvements", "Clearing debts"],
+        },
+      ],
+    });
+    expect(r.loanPurpose).toBe("Home improvements, Clearing debts");
+  });
+
   it("falls back to first_name + last_name when full_name absent", () => {
     const r = normaliseFbLead({
       id: "x",

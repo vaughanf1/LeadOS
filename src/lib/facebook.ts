@@ -70,7 +70,10 @@ export function normaliseFlat(
   const find = (...keys: string[]): string | undefined => {
     for (const k of keys) {
       for (const name in flat) {
-        if (name.includes(k)) return flat[name];
+        // Facebook stores question keys with underscores (e.g.
+        // "what_would_you_use_the_money_for"). Normalise to spaces so
+        // space-worded keys like "money for" still match.
+        if (name.replace(/_/g, " ").includes(k)) return flat[name];
       }
     }
     return undefined;
