@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url("https://rsms.me/inter/inter.css");
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap");
 
 html, body {
   background: theme("colors.canvas.DEFAULT");
@@ -27,7 +27,10 @@ html, body {
            focus:outline-none focus:ring-2 focus:ring-brand/40 focus:ring-offset-2 focus:ring-offset-canvas;
   }
   .btn-primary {
-    @apply btn bg-brand text-white hover:bg-brand-600 active:bg-brand-700 shadow-soft;
+    @apply btn bg-brand text-white hover:bg-brand-700 active:bg-brand-800 shadow-soft;
+  }
+  .btn-accent {
+    @apply btn bg-accent text-brand-900 hover:bg-accent-600 active:bg-accent-700 shadow-soft;
   }
   .btn-secondary {
     @apply btn bg-canvas-card text-ink border border-line hover:bg-canvas-subtle;

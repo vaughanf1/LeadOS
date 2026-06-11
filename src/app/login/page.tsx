@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { AUTH_COOKIE, checkPassword } from "@/lib/auth";
@@ -27,9 +28,21 @@ export default async function LoginPage({
     <div className="min-h-screen flex items-center justify-center px-4">
       <form action={loginAction} className="card w-full max-w-sm">
         <div className="card-body space-y-5">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">LeadOS</h1>
-            <p className="text-sm text-ink-muted mt-1">Sign in to continue</p>
+          <div className="flex flex-col items-center text-center">
+            <Image
+              src="/os4er-logo.png"
+              alt="One Stop 4 Equity Release"
+              width={132}
+              height={90}
+              priority
+              className="h-20 w-auto mb-3"
+            />
+            <h1 className="text-xl font-bold tracking-tight text-brand">
+              One Stop 4 Equity Release
+            </h1>
+            <p className="text-sm text-ink-muted mt-1">
+              Lead distribution · Sign in to continue
+            </p>
           </div>
           <div>
             <label className="label">Admin password</label>

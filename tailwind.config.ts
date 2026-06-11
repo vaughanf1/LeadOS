@@ -5,18 +5,33 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // One Stop 4 Equity Release — primary navy (#263850)
         brand: {
-          DEFAULT: "#0A84FF",
-          50: "#E8F2FF",
-          100: "#D1E5FF",
-          200: "#A3CBFF",
-          300: "#75B1FF",
-          400: "#4798FF",
-          500: "#0A84FF",
-          600: "#0066CC",
-          700: "#004D99",
-          800: "#003366",
-          900: "#001A33",
+          DEFAULT: "#263850",
+          50: "#F2F4F7",
+          100: "#E3E8EF",
+          200: "#C7D0DE",
+          300: "#97A6BC",
+          400: "#5C7491",
+          500: "#3A5273",
+          600: "#263850",
+          700: "#1F2E42",
+          800: "#182331",
+          900: "#0F1722",
+        },
+        // OS4ER accent — amber/orange (#FD9B0E)
+        accent: {
+          DEFAULT: "#FD9B0E",
+          50: "#FFF6E9",
+          100: "#FFEACB",
+          200: "#FED28E",
+          300: "#FEBE5C",
+          400: "#FDAB36",
+          500: "#FD9B0E",
+          600: "#E08605",
+          700: "#B56C07",
+          800: "#8A530A",
+          900: "#5C370A",
         },
         ink: {
           DEFAULT: "#0A0A0A",
@@ -35,6 +50,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: [
+          "Montserrat",
           "Inter",
           "-apple-system",
           "BlinkMacSystemFont",

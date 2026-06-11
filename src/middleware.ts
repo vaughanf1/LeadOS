@@ -7,6 +7,10 @@ export function middleware(req: NextRequest) {
   if (pathname.startsWith("/_next") || pathname.startsWith("/favicon")) {
     return NextResponse.next();
   }
+  // Allow public static assets (logo, images, fonts, etc.) without auth.
+  if (/\.(?:png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf)$/i.test(pathname)) {
+    return NextResponse.next();
+  }
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }

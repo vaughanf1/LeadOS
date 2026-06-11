@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -27,14 +28,23 @@ export function Sidebar() {
   const pathname = usePathname();
   return (
     <aside className="w-60 shrink-0 border-r border-line/60 bg-canvas-card hidden md:flex md:flex-col">
-      <div className="px-6 py-5 border-b border-line/60">
-        <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-xl bg-brand flex items-center justify-center text-white font-semibold text-sm shadow-soft">
-            L
-          </div>
-          <div>
-            <div className="font-semibold tracking-tight">LeadOS</div>
-            <div className="text-[11px] text-ink-muted -mt-0.5">Equity Release</div>
+      <div className="px-5 py-5 border-b border-line/60">
+        <div className="flex items-center gap-3">
+          <Image
+            src="/os4er-logo.png"
+            alt="One Stop 4 Equity Release"
+            width={44}
+            height={30}
+            priority
+            className="h-9 w-auto shrink-0"
+          />
+          <div className="leading-tight">
+            <div className="font-bold tracking-tight text-brand text-[13px]">
+              One Stop 4
+            </div>
+            <div className="text-[11px] font-semibold text-accent-600 -mt-0.5">
+              Equity Release
+            </div>
           </div>
         </div>
       </div>
