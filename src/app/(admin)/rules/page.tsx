@@ -15,41 +15,22 @@ export default async function RulesPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
           <div className="card-header">
-            <h2 className="text-base font-semibold">Scoring</h2>
+            <h2 className="text-base font-semibold">Lead quality</h2>
           </div>
           <div className="card-body space-y-4 text-sm">
-            <div>
-              <div className="text-ink-muted text-xs uppercase mb-1">Bands</div>
-              HIGH ≥ {s["scoring.thresholds"].highMin} · MID ≥ {s["scoring.thresholds"].midMin} · otherwise LOW
-            </div>
-            <RulesBlock title="Age">
-              {s["scoring.thresholds"].ageBands.map((b, i) => (
-                <li key={i}>
-                  {b.min}-{b.max === 200 ? "+" : b.max}: <strong>{b.points > 0 ? "+" : ""}{b.points}</strong>
-                </li>
-              ))}
+            <p className="text-ink-muted">
+              Quality is graded simply, on the customer&apos;s age and how soon
+              they want to act. Property value and mortgage are recorded on the
+              lead but don&apos;t affect the grade.
+            </p>
+            <RulesBlock title="HIGH">
+              <li>65 or older <strong>and</strong> acting now (&ldquo;this month&rdquo;).</li>
             </RulesBlock>
-            <RulesBlock title="Mortgage remaining">
-              {s["scoring.thresholds"].mortgageBands.map((b, i) => (
-                <li key={i}>
-                  ≤ £{b.maxPounds === Number.MAX_SAFE_INTEGER ? "∞" : b.maxPounds.toLocaleString()}:{" "}
-                  <strong>{b.points > 0 ? "+" : ""}{b.points}</strong>
-                </li>
-              ))}
+            <RulesBlock title="MID">
+              <li>60 or older <strong>and</strong> looking to act within 1–6 months.</li>
             </RulesBlock>
-            <RulesBlock title="Urgency">
-              {Object.entries(s["scoring.thresholds"].urgencyPoints).map(([k, v]) => (
-                <li key={k}>
-                  {k}: <strong>{v > 0 ? "+" : ""}{v}</strong>
-                </li>
-              ))}
-            </RulesBlock>
-            <RulesBlock title="Property value">
-              {s["scoring.thresholds"].propertyValueBands.map((b, i) => (
-                <li key={i}>
-                  ≥ £{b.minPounds.toLocaleString()}: <strong>{b.points > 0 ? "+" : ""}{b.points}</strong>
-                </li>
-              ))}
+            <RulesBlock title="LOW">
+              <li>Under 60, <strong>or</strong> just researching for now.</li>
             </RulesBlock>
           </div>
         </div>

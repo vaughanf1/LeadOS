@@ -14,77 +14,81 @@ export type ScoreBreakdown = {
   components: { factor: string; points: number; reason: string }[];
 };
 
-function ageScore(age: number | null | undefined, t: ScoringThresholds) {
-  if (age === null || age === undefined) return { points: 0, reason: "age unknown" };
-  for (const b of t.ageBands) {
-    if (age >= b.min && age <= b.max) {
-      return { points: b.points, reason: `age ${age} in [${b.min}-${b.max}]` };
-    }
+// Age gates. Equity-release leads skew older, so age is the primary signal and
+// under-60s are low priority regardless of urgency.
+const MID_AGE = 60; // "over 60"
+const HIGH_AGE = 65; // "over 65"
+
+type UrgencyTier = "urgent" | "soon" | "researching";
+
+/**
+ * Collapse the free-form urgency answer into three tiers:
+ *   urgent      — "This month (urgent)" / "immediately"
+ *   soon        — "Within 1-3 months" / "Within 3-6 months"
+ *   researching — "Just researching for now" / blank / anything else
+ */
+function urgencyTier(urgency: string | null | undefined): UrgencyTier {
+  const k = (urgency ?? "").toLowerCase();
+  if (k.includes("urgent") || k.includes("this month") || k.includes("immediat")) {
+    return "urgent";
   }
-  return { points: 0, reason: `age ${age} matched no band` };
+  if (k.includes("month")) return "soon";
+  return "researching";
 }
 
-function mortgageScore(value: number | null | undefined, t: ScoringThresholds) {
-  if (value === null || value === undefined) {
-    return { points: 0, reason: "mortgage remaining unknown" };
-  }
-  // Bands are ordered low→high by maxPounds; first match wins.
-  for (const b of t.mortgageBands) {
-    if (value <= b.maxPounds) {
-      return { points: b.points, reason: `mortgage £${value} ≤ £${b.maxPounds}` };
-    }
-  }
-  return { points: 0, reason: `mortgage £${value} matched no band` };
-}
+// Representative score per band, kept only so existing displays/logs that show a
+// number still have one. The band — not the number — is what drives routing.
+const BAND_SCORE: Record<QualityBand, number> = { HIGH: 100, MID: 60, LOW: 20 };
 
-function urgencyScore(urgency: string | null | undefined, t: ScoringThresholds) {
-  if (!urgency) return { points: 0, reason: "urgency unknown" };
-  const key = urgency.toLowerCase().trim();
-  // Direct match first.
-  if (key in t.urgencyPoints) {
-    return { points: t.urgencyPoints[key], reason: `urgency "${urgency}"` };
-  }
-  // Substring fallback — Facebook answers are free-form.
-  for (const [k, v] of Object.entries(t.urgencyPoints)) {
-    if (key.includes(k)) return { points: v, reason: `urgency contains "${k}"` };
-  }
-  return { points: 0, reason: `urgency "${urgency}" not recognised` };
-}
-
-function propertyScore(value: number | null | undefined, t: ScoringThresholds) {
-  if (value === null || value === undefined) {
-    return { points: 0, reason: "property value unknown" };
-  }
-  // Bands ordered high→low by minPounds; first match wins.
-  for (const b of t.propertyValueBands) {
-    if (value >= b.minPounds) {
-      return { points: b.points, reason: `property £${value} ≥ £${b.minPounds}` };
-    }
-  }
-  return { points: 0, reason: `property £${value} matched no band` };
-}
-
+/**
+ * Simple, transparent lead grading driven by age + urgency:
+ *   HIGH — 65 or older AND acting now ("this month")
+ *   MID  — 60 or older AND acting within 1–6 months (or 60–64 and acting now)
+ *   LOW  — everyone else (under 60, or just researching)
+ *
+ * Property value and mortgage are still captured on the lead but no longer
+ * affect the grade — the rule is deliberately kept simple.
+ *
+ * The second argument is retained for call-site compatibility but unused.
+ */
 export function scoreLead(
   factors: LeadFactors,
-  thresholds: ScoringThresholds
+  _thresholds?: ScoringThresholds
 ): ScoreBreakdown {
-  const components: ScoreBreakdown["components"] = [];
+  const age = factors.age ?? null;
+  const tier = urgencyTier(factors.urgency);
 
-  const a = ageScore(factors.age, thresholds);
-  components.push({ factor: "age", ...a });
+  const ageLabel = age == null ? "age unknown" : `age ${age}`;
+  const urgencyLabel =
+    tier === "urgent"
+      ? "acting now (this month)"
+      : tier === "soon"
+        ? "acting within 1–6 months"
+        : "just researching";
 
-  const m = mortgageScore(factors.mortgageRemaining, thresholds);
-  components.push({ factor: "mortgage", ...m });
+  let band: QualityBand;
+  let reason: string;
+  if (age != null && age >= HIGH_AGE && tier === "urgent") {
+    band = "HIGH";
+    reason = `${ageLabel} (65+) and ${urgencyLabel}`;
+  } else if (age != null && age >= MID_AGE && tier !== "researching") {
+    band = "MID";
+    reason = `${ageLabel} (60+) and ${urgencyLabel}`;
+  } else {
+    band = "LOW";
+    reason =
+      age == null
+        ? "age unknown"
+        : age < MID_AGE
+          ? `${ageLabel} (under 60)`
+          : `${ageLabel} but ${urgencyLabel}`;
+  }
 
-  const u = urgencyScore(factors.urgency, thresholds);
-  components.push({ factor: "urgency", ...u });
+  const components = [
+    { factor: "age", points: 0, reason: ageLabel },
+    { factor: "urgency", points: 0, reason: urgencyLabel },
+    { factor: "grade", points: BAND_SCORE[band], reason },
+  ];
 
-  const p = propertyScore(factors.propertyValue, thresholds);
-  components.push({ factor: "property", ...p });
-
-  const total = components.reduce((sum, c) => sum + c.points, 0);
-  const band: QualityBand =
-    total >= thresholds.highMin ? "HIGH" : total >= thresholds.midMin ? "MID" : "LOW";
-
-  return { total, band, components };
+  return { total: BAND_SCORE[band], band, components };
 }
