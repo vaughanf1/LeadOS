@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusPill, qualityVariant, leadStatusVariant } from "@/components/StatusPill";
 import { formatDateTime, formatGBP } from "@/lib/utils";
+import { leadDisplayAnswers } from "@/lib/facebook";
 import Link from "next/link";
 import type { Prisma, LeadStatus, QualityBand } from "@prisma/client";
 
@@ -97,7 +98,12 @@ export default async function LeadsPage({
             </tr>
           </thead>
           <tbody>
-            {leads.map((l) => (
+            {leads.map((l) => {
+              // Show the customer's actual answers ("61-65", "£200,000 -
+              // £300,000") rather than the midpoint integers used for scoring,
+              // which collapse into a handful of buckets and look like demo data.
+              const answers = leadDisplayAnswers(l.rawPayload);
+              return (
               <tr key={l.id} className="cursor-pointer">
                 <td className="text-ink-muted whitespace-nowrap">{formatDateTime(l.receivedAt)}</td>
                 <td>
@@ -106,9 +112,9 @@ export default async function LeadsPage({
                   </Link>
                 </td>
                 <td className="text-ink-muted">{l.phone ?? "—"}</td>
-                <td>{l.age ?? "—"}</td>
-                <td>{formatGBP(l.propertyValue)}</td>
-                <td>{formatGBP(l.mortgageRemaining)}</td>
+                <td className="whitespace-nowrap">{answers.age ?? (l.age != null ? String(l.age) : "—")}</td>
+                <td className="whitespace-nowrap">{answers.propertyValue ?? formatGBP(l.propertyValue)}</td>
+                <td className="whitespace-nowrap">{answers.mortgage ?? formatGBP(l.mortgageRemaining)}</td>
                 <td className="text-ink-muted">{l.urgency ?? "—"}</td>
                 <td>
                   {l.qualityBand ? (
@@ -122,7 +128,8 @@ export default async function LeadsPage({
                   <StatusPill variant={leadStatusVariant(l.status)}>{l.status}</StatusPill>
                 </td>
               </tr>
-            ))}
+              );
+            })}
             {leads.length === 0 && (
               <tr>
                 <td colSpan={10} className="text-center py-12 text-ink-muted">

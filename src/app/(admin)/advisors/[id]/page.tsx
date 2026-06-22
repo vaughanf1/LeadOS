@@ -40,13 +40,16 @@ async function saveAdvisor(formData: FormData) {
 async function saveSchedule(formData: FormData) {
   "use server";
   const advisorId = String(formData.get("advisorId"));
-  // Clear existing then re-create entries for any day with both start+end.
+  // Clear existing then re-create a row for every day that has BOTH a start and
+  // an end time. A day is "on" simply by virtue of having hours filled in —
+  // there's no separate checkbox to forget. To remove a day's custom hours,
+  // clear its time fields. (The old form silently dropped any day where the
+  // "On" box wasn't ticked or where a time wasn't typed as exactly HH:mm,
+  // which is why schedules appeared to "reset" without saving.)
   await prisma.advisorSchedule.deleteMany({ where: { advisorId } });
   for (let d = 0; d < 7; d++) {
-    const enabled = formData.get(`enabled_${d}`) === "on";
-    if (!enabled) continue;
-    const start = String(formData.get(`start_${d}`) ?? "");
-    const end = String(formData.get(`end_${d}`) ?? "");
+    const start = String(formData.get(`start_${d}`) ?? "").trim();
+    const end = String(formData.get(`end_${d}`) ?? "").trim();
     if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end)) continue;
     await prisma.advisorSchedule.create({
       data: { advisorId, dayOfWeek: d, startTime: start, endTime: end, enabled: true },
@@ -177,33 +180,29 @@ export default async function AdvisorDetailPage({ params }: { params: Promise<{ 
             </div>
             <div className="card-body space-y-2">
               <p className="text-xs text-ink-muted mb-2">
-                If no schedule rows are enabled, the default business hours apply.
+                Set a start and end time for any day this advisor should receive
+                leads. Days left blank fall back to the default business hours.
+                To remove a day's custom hours, clear both times.
               </p>
               {DAYS.map((d, i) => {
                 const s = schedulesByDay.get(i);
                 return (
-                  <div key={i} className="grid grid-cols-[64px,1fr,1fr,auto] items-center gap-2">
+                  <div key={i} className="grid grid-cols-[64px,1fr,1fr] items-center gap-2">
                     <span className="text-sm">{d}</span>
                     <input
+                      type="time"
                       name={`start_${i}`}
                       defaultValue={s?.startTime ?? ""}
-                      placeholder="09:00"
+                      aria-label={`${d} start time`}
                       className="input"
                     />
                     <input
+                      type="time"
                       name={`end_${i}`}
                       defaultValue={s?.endTime ?? ""}
-                      placeholder="17:00"
+                      aria-label={`${d} end time`}
                       className="input"
                     />
-                    <label className="text-xs flex items-center gap-1.5">
-                      <input
-                        type="checkbox"
-                        name={`enabled_${i}`}
-                        defaultChecked={!!s?.enabled}
-                      />
-                      On
-                    </label>
                   </div>
                 );
               })}

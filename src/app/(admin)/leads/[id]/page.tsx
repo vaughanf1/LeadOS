@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusPill, qualityVariant, leadStatusVariant } from "@/components/StatusPill";
 import { formatDateTime, formatGBP } from "@/lib/utils";
+import { leadDisplayAnswers } from "@/lib/facebook";
 import { processLead } from "@/lib/pipeline";
 import { redirect } from "next/navigation";
 
@@ -28,6 +29,10 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     },
   });
   if (!lead) notFound();
+
+  // Show the customer's verbatim answers; fall back to the scored integers only
+  // if the raw payload is missing them.
+  const answers = leadDisplayAnswers(lead.rawPayload);
 
   return (
     <>
@@ -80,9 +85,10 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
               <Row k="Phone" v={lead.phone} />
               <Row k="Email" v={lead.email} />
               <Row k="Postcode" v={lead.postcode} />
-              <Row k="Age" v={lead.age} />
-              <Row k="Property" v={formatGBP(lead.propertyValue)} />
-              <Row k="Mortgage" v={formatGBP(lead.mortgageRemaining)} />
+              {answers.title && <Row k="Title" v={answers.title} />}
+              <Row k="Age" v={answers.age ?? lead.age} />
+              <Row k="Property" v={answers.propertyValue ?? formatGBP(lead.propertyValue)} />
+              <Row k="Mortgage" v={answers.mortgage ?? formatGBP(lead.mortgageRemaining)} />
               <Row k="Urgency" v={lead.urgency} />
               <Row k="Needs money for" v={lead.loanPurpose} />
               <Row k="Stage" v={lead.enquiryStage} />

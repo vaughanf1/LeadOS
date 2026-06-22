@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import crypto from "node:crypto";
-import { verifySignature, normaliseFbLead } from "@/lib/facebook";
+import { verifySignature, normaliseFbLead, leadDisplayAnswers } from "@/lib/facebook";
 
 describe("verifySignature", () => {
   beforeEach(() => {
@@ -78,5 +78,51 @@ describe("normaliseFbLead", () => {
       ],
     });
     expect(r.fullName).toBe("John Smith");
+  });
+
+  it("parses k/m suffixes instead of dropping them (1000× bug)", () => {
+    const mk = (mort: string) =>
+      normaliseFbLead({
+        id: "x",
+        created_time: "",
+        field_data: [{ name: "mortgage", values: [mort] }],
+      }).mortgageRemaining;
+    // "£100k-£150k" → midpoint of 100,000 and 150,000, not 125.
+    expect(mk("Yes, with a mortgage (£100k-£150k remaining)")).toBe(125_000);
+    expect(mk("Yes, with a mortgage (£150-£200k remaining)")).toBe(175_000);
+    expect(mk("Yes, with a mortgage (Over £200k remaining)")).toBe(200_000);
+    expect(mk("Yes, with a small mortgage (under £50,000 remaining)")).toBe(50_000);
+  });
+
+  it("takes the midpoint of a property-value range", () => {
+    const r = normaliseFbLead({
+      id: "x",
+      created_time: "",
+      field_data: [{ name: "property_value", values: ["£200,000 - £300,000"] }],
+    });
+    expect(r.propertyValue).toBe(250_000);
+  });
+});
+
+describe("leadDisplayAnswers", () => {
+  it("returns the customer's verbatim answers from field_data", () => {
+    const a = leadDisplayAnswers({
+      field_data: [
+        { name: "age", values: ["61-65"] },
+        { name: "property_value", values: ["£200,000 - £300,000"] },
+        { name: "mortgage", values: ["Yes, with a mortgage (£100k-£150k remaining)"] },
+      ],
+    });
+    expect(a.age).toBe("61-65");
+    expect(a.propertyValue).toBe("£200,000 - £300,000");
+    expect(a.mortgage).toBe("Yes, with a mortgage (£100k-£150k remaining)");
+  });
+
+  it("reads a flat (Zapier) payload too, and is null-safe", () => {
+    const a = leadDisplayAnswers({ age: "71-75", property_value: "£400,000 - £500,000" });
+    expect(a.age).toBe("71-75");
+    expect(a.propertyValue).toBe("£400,000 - £500,000");
+    expect(a.mortgage).toBeNull();
+    expect(leadDisplayAnswers(null).age).toBeNull();
   });
 });
