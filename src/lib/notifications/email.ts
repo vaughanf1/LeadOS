@@ -30,6 +30,42 @@ function parseFrom(from: string): { name: string; email: string } {
 }
 
 /**
+ * Send via Resend's transactional HTTP API (port 443).
+ * Preferred provider. `from` must be an address on a domain verified in Resend
+ * (e.g. "OS4ER Leads <leads@onestop4equityrelease.co.uk>").
+ */
+async function sendViaResend(
+  apiKey: string,
+  from: string,
+  opts: { to: string; subject: string; text: string; html?: string }
+): Promise<EmailResult> {
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${apiKey}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: [opts.to],
+        subject: opts.subject,
+        text: opts.text,
+        ...(opts.html ? { html: opts.html } : {}),
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      return { ok: false, error: `Resend ${res.status}: ${body.slice(0, 200)}` };
+    }
+    const data = (await res.json()) as { id?: string };
+    return { ok: true, messageId: data.id ?? "resend" };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
  * Send via Brevo's transactional HTTP API (port 443).
  * Used in production because Railway blocks outbound SMTP ports.
  */
@@ -72,9 +108,18 @@ export async function sendEmail(opts: {
   text: string;
   html?: string;
 }): Promise<EmailResult> {
-  const from = process.env.SMTP_FROM ?? "LeadOS <noreply@example.com>";
+  // EMAIL_FROM lets prod send from a verified domain address without disturbing
+  // the SMTP_FROM used by the local SMTP fallback. Falls back to SMTP_FROM.
+  const from = process.env.EMAIL_FROM ?? process.env.SMTP_FROM ?? "LeadOS <noreply@example.com>";
 
-  // Preferred path: Brevo HTTP API (works on Railway, which blocks SMTP).
+  // Preferred path: Resend HTTP API (works on Railway, which blocks SMTP).
+  const resendKey = process.env.RESEND_API_KEY;
+  if (resendKey) {
+    return sendViaResend(resendKey, from, opts);
+  }
+
+  // Legacy path: Brevo HTTP API. Kept as an automatic fallback during the
+  // migration; remove BREVO_API_KEY once Resend is confirmed working.
   const brevoKey = process.env.BREVO_API_KEY;
   if (brevoKey) {
     return sendViaBrevo(brevoKey, from, opts);
