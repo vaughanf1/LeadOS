@@ -33,7 +33,11 @@ export async function register() {
   const base = `http://127.0.0.1:${port}`;
 
   const jobs = [
-    { hhmm: "08:30", path: "/api/cron/release-held" }, // release overnight-held leads
+    // Release overnight-held leads at business open. Must be at/after the
+    // working-hours start (09:00) — releasing earlier would re-evaluate the
+    // leads while still "out of hours" and, under after-hours HOLD mode, simply
+    // hold them again.
+    { hhmm: "09:00", path: "/api/cron/release-held" },
     { hhmm: "00:00", path: "/api/cron/reset-daily-counts" }, // reset advisor counters
   ];
   // Tracks the last UK date (yyyy-MM-dd) each job fired, so it runs once/day.

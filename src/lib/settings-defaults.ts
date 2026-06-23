@@ -65,12 +65,15 @@ export const DEFAULT_SETTINGS: SettingsMap = {
   "hours.working": {
     startHHmm: "09:00",
     endHHmm: "17:00",
-    morningReleaseHHmm: "08:30",
+    // Held leads release at business open so they land with on-shift advisers
+    // rather than being re-held for being "out of hours".
+    morningReleaseHHmm: "09:00",
     timeZone: "Europe/London",
   },
 
   "afterHours.config": {
-    mode: "CRAIG",
+    // Out-of-hours leads wait for the morning release instead of being forwarded.
+    mode: "HOLD",
     aiAfterHoursEnabled: false,
   },
 };
