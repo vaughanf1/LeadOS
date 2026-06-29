@@ -17,8 +17,12 @@ import { emailTemplate } from "../src/lib/notifications/templates";
 
 const prisma = new PrismaClient();
 const APPLY = process.argv.includes("--apply");
-const sinceArg = process.argv[process.argv.indexOf("--since") + 1];
-const since = sinceArg && sinceArg !== "--apply" ? new Date(sinceArg) : null;
+const sinceIdx = process.argv.indexOf("--since");
+const sinceArg = sinceIdx >= 0 ? process.argv[sinceIdx + 1] : undefined;
+const since = sinceArg ? new Date(sinceArg) : null;
+if (since && Number.isNaN(since.getTime())) {
+  throw new Error(`Invalid --since date: ${sinceArg}`);
+}
 
 async function main() {
   const failed = await prisma.notificationLog.findMany({
