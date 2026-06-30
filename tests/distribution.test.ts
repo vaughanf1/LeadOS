@@ -9,6 +9,8 @@ const HOURS = DEFAULT_SETTINGS["hours.working"];
 // Tuesday 11:00 Europe/London. We use a known winter Tuesday.
 const TUE_11AM_UTC = new Date("2026-01-13T11:00:00Z"); // Tue 11:00 UTC == 11:00 GMT (winter)
 const TUE_22_00_UTC = new Date("2026-01-13T22:00:00Z"); // After hours
+const SAT_11AM_UTC = new Date("2026-01-17T11:00:00Z"); // Sat 11:00 GMT — weekend, in working-hours window
+const SAT_03_00_UTC = new Date("2026-01-17T03:00:00Z"); // Sat 03:00 GMT — weekend overnight
 
 function advisor(over: Partial<AdvisorWithSchedule>): AdvisorWithSchedule {
   const now = new Date();
@@ -62,7 +64,7 @@ describe("advisorEligibility", () => {
     const a = advisor({});
     const r = advisorEligibility(a, "HIGH", HOURS, TUE_22_00_UTC);
     expect(r.eligible).toBe(false);
-    expect(r.reason).toMatch(/outside default business hours|outside custom hours|weekend/);
+    expect(r.reason).toMatch(/outside working hours|outside custom hours|weekend/);
   });
 
   it("accepts inside business hours with capacity", () => {
@@ -84,6 +86,22 @@ describe("advisorEligibility", () => {
     // Tue 22:00 — outside custom window → not eligible (even though default hours would also exclude)
     const outOfWindow = advisorEligibility(a, "HIGH", HOURS, TUE_22_00_UTC);
     expect(outOfWindow.eligible).toBe(false);
+  });
+
+  it("weekend-enabled advisor is eligible during weekend daytime", () => {
+    // Sat 11:00, weekend-enabled, no custom schedule → within working-hours window.
+    const a = advisor({ weekendEnabled: true });
+    const r = advisorEligibility(a, "HIGH", HOURS, SAT_11AM_UTC);
+    expect(r.eligible).toBe(true);
+  });
+
+  it("weekend-enabled advisor is NOT eligible overnight on a weekend", () => {
+    // Sat 03:00 — weekend-enabled but outside the working-hours window. Overnight
+    // weekend leads must hold for the morning release, not deliver live.
+    const a = advisor({ weekendEnabled: true });
+    const r = advisorEligibility(a, "HIGH", HOURS, SAT_03_00_UTC);
+    expect(r.eligible).toBe(false);
+    expect(r.reason).toMatch(/outside working hours|weekend/);
   });
 });
 
@@ -160,6 +178,54 @@ describe("planDistribution", () => {
     // Backend advisor without custom schedule + weekendEnabled is eligible only on weekends,
     // so during weekday evening they're not eligible via custom-availability path → AFTER_HOURS.
     expect(plan.outcome).toBe("AFTER_HOURS");
+    expect(plan.advisorIds).toEqual(["bk"]);
+  });
+
+  it("weekend overnight HOLD → held, not delivered to weekend-enabled backend", () => {
+    // Sat 03:00 with only a weekend-enabled backend advisor available. Before the
+    // weekend-window guard this assigned live to them at 3am; now it must HOLD.
+    const advisors = [
+      advisor({
+        id: "bk",
+        name: "Kasia",
+        group: "BACKEND",
+        priority: 99,
+        weekendEnabled: true,
+        acceptsHigh: true,
+        acceptsMid: true,
+        acceptsLow: true,
+      }),
+    ];
+    const plan = planDistribution({
+      lead: { qualityBand: "MID" },
+      advisors,
+      hours: HOURS,
+      afterHoursMode: "HOLD",
+      now: SAT_03_00_UTC,
+    });
+    expect(plan.outcome).toBe("HOLD");
+  });
+
+  it("weekend daytime → assigns to weekend-enabled advisor", () => {
+    // Sat 11:00 — weekend-enabled advisor should receive the lead during the day.
+    const advisors = [
+      advisor({
+        id: "bk",
+        name: "Kasia",
+        group: "BACKEND",
+        priority: 99,
+        weekendEnabled: true,
+        acceptsLow: true,
+      }),
+    ];
+    const plan = planDistribution({
+      lead: { qualityBand: "LOW" },
+      advisors,
+      hours: HOURS,
+      afterHoursMode: "HOLD",
+      now: SAT_11AM_UTC,
+    });
+    expect(plan.outcome).toBe("ASSIGN");
     expect(plan.advisorIds).toEqual(["bk"]);
   });
 

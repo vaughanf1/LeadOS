@@ -5,7 +5,7 @@ import type {
   Lead,
   QualityBand,
 } from "@prisma/client";
-import { isWithinBusinessHours, isWithinSchedule, ukParts } from "./time";
+import { isWithinBusinessHours, isWithinSchedule, parseHHmm, ukParts } from "./time";
 import type { WorkingHours } from "./settings-defaults";
 
 export type AdvisorWithSchedule = Advisor & { schedules: AdvisorSchedule[] };
@@ -58,15 +58,24 @@ export function advisorEligibility(
     }
   } else {
     // No custom schedule → fall back to default business hours.
-    // Backend advisors can opt out via weekendEnabled.
+    // Backend advisors can opt out of weekends entirely via weekendEnabled.
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
     if (isWeekend && !adv.weekendEnabled) {
       return { eligible: false, reason: "weekend (advisor not weekend-enabled)" };
     }
-    if (!isWeekend && !isWithinBusinessHours(hours, now)) {
+    // Enforce the working-hours time window on EVERY day, weekends included.
+    // Without this, a weekend-enabled advisor with no custom schedule counts as
+    // available 24/7 on Sat/Sun, so overnight weekend leads get delivered live
+    // instead of being held for the 09:00 morning release. Weekday out-of-hours
+    // leads were already excluded here; this extends the same guard to weekends.
+    const { minutesSinceMidnight } = ukParts(now);
+    const withinWindow =
+      minutesSinceMidnight >= parseHHmm(hours.startHHmm) &&
+      minutesSinceMidnight < parseHHmm(hours.endHHmm);
+    if (!withinWindow) {
       return {
         eligible: false,
-        reason: `outside default business hours (${hours.startHHmm}-${hours.endHHmm})`,
+        reason: `outside working hours (${hours.startHHmm}-${hours.endHHmm})`,
       };
     }
   }
